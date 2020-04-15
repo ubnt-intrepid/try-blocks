@@ -1,8 +1,10 @@
+#![no_std]
+
 pub use try_blocks_macros::try_blocks;
 
 #[doc(hidden)]
 pub mod _rt {
-    use std::task::Poll;
+    use core::task::Poll;
 
     pub trait Try: sealed::Sealed {
         type Ok_;
@@ -114,7 +116,7 @@ pub mod _rt {
     }
 
     mod sealed {
-        use std::task::Poll;
+        use core::task::Poll;
 
         pub trait Sealed {}
         impl<T, E> Sealed for Result<T, E> {}
