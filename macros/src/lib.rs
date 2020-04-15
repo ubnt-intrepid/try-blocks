@@ -4,41 +4,36 @@ use quote::{quote, quote_spanned};
 use syn::{
     fold::{self, Fold}, //
     spanned::Spanned,
+    Block,
     Expr,
     ExprTry,
     ExprTryBlock,
     Item,
-    ItemFn,
     Lifetime,
     Stmt,
 };
 
 #[proc_macro_attribute]
 pub fn try_blocks(_: TokenStream, item: TokenStream) -> TokenStream {
-    let item: ItemFn = syn::parse_macro_input!(item);
+    let item = syn::parse_macro_input!(item as Item);
 
-    let mut item = TryBlocksExpander {
-        try_scopes: vec![], //
-    }
-    .fold_item_fn(item);
-
-    item.block.stmts.insert(
-        0,
-        syn::parse_quote! {
-            use ::try_blocks::_rt as __try_blocks;
-        },
-    );
+    let item = TryBlocksExpander::default().expand(item);
 
     TokenStream::from(quote! {
         #item
     })
 }
 
+#[derive(Default)]
 struct TryBlocksExpander {
     try_scopes: Vec<Lifetime>,
 }
 
 impl TryBlocksExpander {
+    fn expand(&mut self, item: Item) -> Item {
+        fold::fold_item(self, item)
+    }
+
     fn with_try_scope<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
         let len = self.try_scopes.len();
         self.try_scopes.push(Lifetime::new(
@@ -131,6 +126,19 @@ impl TryBlocksExpander {
 impl Fold for TryBlocksExpander {
     fn fold_item(&mut self, item: Item) -> Item {
         item // ignore inner items
+    }
+
+    fn fold_block(&mut self, block: Block) -> Block {
+        let mut expanded = fold::fold_block(self, block);
+
+        expanded.stmts.insert(
+            0,
+            syn::parse_quote! {
+                use ::try_blocks::_rt as __try_blocks;
+            },
+        );
+
+        expanded
     }
 
     fn fold_expr(&mut self, expr: Expr) -> Expr {
