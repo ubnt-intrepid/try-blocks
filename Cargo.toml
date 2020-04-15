@@ -1,0 +1,15 @@
+[package]
+name = "try-blocks"
+version = "0.1.0"
+publish = false
+authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+try-blocks-macros = { path = "macros" }
+
+[workspace]
+members = [
+    ".",
+    "macros",
+]
