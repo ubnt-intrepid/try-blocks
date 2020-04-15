@@ -63,9 +63,9 @@ impl TryBlocksExpander {
         let ExprTryBlock {
             attrs,
             block,
-            try_token,
             ..
         } = expr;
+        let block_span = block.span();
 
         self.with_try_scope(|me| {
             let mut expanded = me.fold_block(block);
@@ -88,7 +88,7 @@ impl TryBlocksExpander {
                     }
                     _ => {
                         expanded.stmts.push(Stmt::Semi(
-                            Expr::Verbatim(quote_spanned! { try_token.span() =>
+                            Expr::Verbatim(quote_spanned! { block_span =>
                                 break #name __try_blocks::from_ok(())
                             }),
                             Default::default(),
@@ -97,7 +97,7 @@ impl TryBlocksExpander {
                 }
             }
 
-            Expr::Verbatim(quote_spanned! { try_token.span() =>
+            Expr::Verbatim(quote_spanned! { block_span =>
                 #(#attrs)*
                 #name: loop {
                     #expanded
