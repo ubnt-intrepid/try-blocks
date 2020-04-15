@@ -1,11 +1,7 @@
 pub use try_blocks_macros::try_blocks;
 
 #[doc(hidden)]
-pub mod _reexports {
-    pub use crate::imp::Try;
-}
-
-mod imp {
+pub mod _rt {
     pub trait Try {
         type Ok_;
         type Error;
@@ -31,6 +27,21 @@ mod imp {
         fn from_error(e: Self::Error) -> Self {
             Err(e)
         }
+    }
+
+    #[inline]
+    pub fn into_result<T: Try>(t: T) -> Result<T::Ok_, T::Error> {
+        t.into_result()
+    }
+
+    #[inline]
+    pub fn from_ok<T: Try>(ok: T::Ok_) -> T {
+        T::from_ok(ok)
+    }
+
+    #[inline]
+    pub fn from_error<T: Try>(err: T::Error) -> T {
+        T::from_error(err)
     }
 
     #[derive(Debug)]
