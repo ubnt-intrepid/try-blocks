@@ -156,6 +156,8 @@ impl Fold for TryBlocksExpander {
     fn fold_expr(&mut self, expr: Expr) -> Expr {
         match expr {
             Expr::TryBlock(e) => self.expand_try_block(e),
+            // ignore `<expr>?` written outside of `try { ... }`
+            expr @ Expr::Try(..) if self.try_scopes.is_empty() => expr,
             Expr::Try(e) => self.expand_try(e),
             expr => fold::fold_expr(self, expr),
         }

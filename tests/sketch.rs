@@ -50,6 +50,12 @@ impl X {
     }
 }
 
+#[try_blocks]
+pub fn try_op_described_outside_of_try_block() -> Result<(), Box<dyn std::error::Error>> {
+    let _ = foo()?;
+    Ok(())
+}
+
 fn foo() -> std::io::Result<i32> {
     Ok(0)
 }
