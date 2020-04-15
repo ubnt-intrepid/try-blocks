@@ -24,9 +24,15 @@ pub fn try_blocks(_: TokenStream, item: TokenStream) -> TokenStream {
     })
 }
 
+struct Scope {
+    id: usize,
+    name: Lifetime,
+}
+
 #[derive(Default)]
 struct TryBlocksExpander {
-    try_scopes: Vec<Lifetime>,
+    try_scopes: Vec<Scope>,
+    next_scope_id: usize,
 }
 
 impl TryBlocksExpander {
@@ -35,16 +41,20 @@ impl TryBlocksExpander {
     }
 
     fn with_try_scope<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
-        let len = self.try_scopes.len();
-        self.try_scopes.push(Lifetime::new(
-            &format!("'__try_blocks_{}", len), //
-            Span::call_site(),
-        ));
+        let scope_id = self.next_scope_id;
+        self.try_scopes.push(Scope {
+            id: scope_id,
+            name: Lifetime::new(
+                &format!("'__try_blocks_{}", scope_id), //
+                Span::call_site(),
+            ),
+        });
+        self.next_scope_id += 1;
 
         let result = f(self);
-        assert_eq!(len + 1, self.try_scopes.len());
 
-        self.try_scopes.pop().unwrap();
+        let scope = self.try_scopes.pop().unwrap();
+        assert_eq!(scope.id, scope_id);
 
         result
     }
@@ -59,7 +69,8 @@ impl TryBlocksExpander {
 
         self.with_try_scope(|me| {
             let mut expanded = me.fold_block(block);
-            let name = me.try_scopes.last().unwrap();
+            let scope = me.try_scopes.last().unwrap();
+            let name = &scope.name;
 
             {
                 let last_non_item_stmt = expanded
@@ -104,7 +115,8 @@ impl TryBlocksExpander {
         } = expr;
 
         let expanded = self.fold_expr(*expr);
-        let name = self.try_scopes.last().unwrap();
+        let scope = self.try_scopes.last().unwrap();
+        let name = &scope.name;
 
         Expr::Verbatim(quote_spanned! { question_token.span() =>
             #(#attrs)*

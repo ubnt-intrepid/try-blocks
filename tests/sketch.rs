@@ -9,6 +9,10 @@ pub fn smoke_free_fn() -> Result<(), Box<dyn std::error::Error>> {
             foo()?;
             42
         };
+
+        let _: Result<_, Box<dyn std::error::Error>> = try {
+            foo()?;
+        };
     }
 }
 
