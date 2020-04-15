@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+      - staging
+      - trying
+
+env:
+  CARGO_TERM_VERBOSE: 'true'
+  CARGO_INCREMENTAL: '0'
+  RUST_BACKTRACE: 'short'
+
+jobs:
+  Test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Install Rust toolchains
+      run: |
+        rustup set profile minimal
+        rustup install stable beta nightly
+        rustup component add rustfmt clippy --toolchain stable
+
+    - name: Generate Cargo.lock
+      run: cargo +stable generate-lockfile
+
+    - if: runner.os == 'Linux'
+      run: sudo chown -R $(whoami):$(id -ng) ~/.cargo/
+
+    - name: Cache cargo registry
+      uses: actions/cache@v1
+      with:
+        path: ~/.cargo/registry
+        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Fetch cargo dependencies
+      run: cargo +stable fetch
+
+    - name: Test (stable)
+      run: |
+        cargo +stable fmt -- --check
+        cargo +stable clippy --workspace --all-targets
+        cargo +stable test
+      env:
+        RUSTFLAGS: '-D warnings'
+      continue-on-error: true
+
+    - name: Test (beta)
+      run: cargo +beta test
+      env:
+        RUSTFLAGS: '-D warnings'
+      continue-on-error: true
+
+    - name: Test (nightly)
+      run: cargo +nightly test
+      continue-on-error: true
+
+    - name: Remove crates.io index
+      shell: bash
+      run: rm -rf ~/.cargo/registry/index
