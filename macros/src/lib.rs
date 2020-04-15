@@ -145,9 +145,9 @@ impl Fold for TryBlocksExpander {
 
         expanded.stmts.insert(
             0,
-            syn::parse_quote! {
+            Stmt::Item(Item::Verbatim(quote! {
                 use ::try_blocks::_rt as __try_blocks;
-            },
+            })),
         );
 
         expanded
