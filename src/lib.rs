@@ -2,7 +2,9 @@ pub use try_blocks_macros::try_blocks;
 
 #[doc(hidden)]
 pub mod _rt {
-    pub trait Try {
+    use std::task::Poll;
+
+    pub trait Try: sealed::Sealed {
         type Ok_;
         type Error;
 
@@ -10,6 +12,21 @@ pub mod _rt {
 
         fn from_ok(v: Self::Ok_) -> Self;
         fn from_error(e: Self::Error) -> Self;
+    }
+
+    #[inline]
+    pub fn into_result<T: Try>(t: T) -> Result<T::Ok_, T::Error> {
+        t.into_result()
+    }
+
+    #[inline]
+    pub fn from_ok<T: Try>(ok: T::Ok_) -> T {
+        T::from_ok(ok)
+    }
+
+    #[inline]
+    pub fn from_error<T: Try>(err: T::Error) -> T {
+        T::from_error(err)
     }
 
     impl<T, E> Try for Result<T, E> {
@@ -27,21 +44,6 @@ pub mod _rt {
         fn from_error(e: Self::Error) -> Self {
             Err(e)
         }
-    }
-
-    #[inline]
-    pub fn into_result<T: Try>(t: T) -> Result<T::Ok_, T::Error> {
-        t.into_result()
-    }
-
-    #[inline]
-    pub fn from_ok<T: Try>(ok: T::Ok_) -> T {
-        T::from_ok(ok)
-    }
-
-    #[inline]
-    pub fn from_error<T: Try>(err: T::Error) -> T {
-        T::from_error(err)
     }
 
     #[derive(Debug)]
@@ -62,5 +64,62 @@ pub mod _rt {
         fn from_error(_: Self::Error) -> Self {
             None
         }
+    }
+
+    impl<T, E> Try for Poll<Result<T, E>> {
+        type Ok_ = Poll<T>;
+        type Error = E;
+
+        #[inline]
+        fn into_result(self) -> Result<Self::Ok_, Self::Error> {
+            match self {
+                Poll::Ready(Ok(x)) => Ok(Poll::Ready(x)),
+                Poll::Ready(Err(e)) => Err(e),
+                Poll::Pending => Ok(Poll::Pending),
+            }
+        }
+
+        #[inline]
+        fn from_ok(v: Self::Ok_) -> Self {
+            v.map(Ok)
+        }
+
+        fn from_error(e: Self::Error) -> Self {
+            Poll::Ready(Err(e))
+        }
+    }
+
+    impl<T, E> Try for Poll<Option<Result<T, E>>> {
+        type Ok_ = Poll<Option<T>>;
+        type Error = E;
+
+        #[inline]
+        fn into_result(self) -> Result<Self::Ok_, Self::Error> {
+            match self {
+                Poll::Ready(Some(Ok(x))) => Ok(Poll::Ready(Some(x))),
+                Poll::Ready(Some(Err(e))) => Err(e),
+                Poll::Ready(None) => Ok(Poll::Ready(None)),
+                Poll::Pending => Ok(Poll::Pending),
+            }
+        }
+
+        #[inline]
+        fn from_ok(v: Self::Ok_) -> Self {
+            v.map(|v| v.map(Ok))
+        }
+
+        fn from_error(e: Self::Error) -> Self {
+            Poll::Ready(Some(Err(e)))
+        }
+    }
+
+    mod sealed {
+        use std::task::Poll;
+
+        pub trait Sealed {}
+        impl<T, E> Sealed for Result<T, E> {}
+        impl<T> Sealed for Option<T> {}
+        impl<T, E> Sealed for Poll<Result<T, E>> {}
+        impl<T, E> Sealed for Poll<Option<Result<T, E>>> {}
     }
 }
