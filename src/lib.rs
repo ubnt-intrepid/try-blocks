@@ -1,5 +1,78 @@
+/*!
+An attribute-style macro that emulates unstable `try` blocks.
+
+# Usage
+
+```
+# fn main() {}
+# use try_blocks::try_blocks;
+# use std::io::Read as _;
+use std::io;
+use std::net::TcpStream;
+
+#[try_blocks]
+fn fallible() {
+    let result: io::Result<Vec<u8>> = try {
+        let mut stream = TcpStream::connect("127.0.0.1:8000")?;
+
+        let mut buf = vec![0u8; 1024];
+        stream.read_exact(&mut buf[..])?;
+
+        buf // tail expr is automatically wrapped
+    };
+
+    match result {
+        Ok(data) => { /* ... */ },
+        Err(err) => {
+            eprintln!("caught an error: {}", err);
+            std::process::exit(101);
+        }
+    }
+}
+```
+
+
+```
+# fn main() {}
+# use try_blocks::try_blocks;
+use std::io;
+use async_std::net::TcpStream;
+
+#[try_blocks]
+async fn fallible_async() {
+    let result: io::Result<Vec<u8>> = try {
+        let mut stream = TcpStream::connect("127.0.0.1:8000").await?;
+
+        let mut buf = vec![0u8; 1024];
+        stream.read_exact(&mut buf[..]).await?;
+
+        buf
+    };
+
+    match result {
+        Ok(data) => { /* ... */ },
+        Err(err) => {
+            eprintln!("caught an error: {}", err);
+            std::process::exit(101);
+        }
+    }
+}
+
+# mod async_std { pub mod net {
+# use std::io;
+# pub struct TcpStream;
+# impl TcpStream {
+#     pub async fn connect(_: &str) -> io::Result<Self> { unimplemented!() }
+#     pub async fn read_exact(&mut self, _: &mut [u8]) -> io::Result<()> { unimplemented!() }
+# }
+# } }
+```
+
+!*/
+
 #![no_std]
 
+/// Expand `try` blocks.
 pub use try_blocks_macros::try_blocks;
 
 #[doc(hidden)]
