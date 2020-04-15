@@ -60,11 +60,7 @@ impl TryBlocksExpander {
     }
 
     fn expand_try_block(&mut self, expr: ExprTryBlock) -> Expr {
-        let ExprTryBlock {
-            attrs,
-            block,
-            ..
-        } = expr;
+        let ExprTryBlock { attrs, block, .. } = expr;
         let block_span = block.span();
 
         self.with_try_scope(|me| {
