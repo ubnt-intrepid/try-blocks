@@ -1,0 +1,44 @@
+name: Doc
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  Doc:
+    runs-on: ubuntu-18.04
+    container:
+      image: rustops/crates-build-env:latest
+      options: --memory 3221225472
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Install Rust toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: nightly
+        override: true
+
+    - name: Cache cargo registry
+      uses: actions/cache@v1
+      with:
+        path: ~/.cargo/registry
+        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Fetch cargo dependencies
+      run: cargo fetch
+
+    - name: Build API docs
+      run: cargo doc --no-deps --workspace
+
+    - name: Deply to GitHub Pages
+      if: github.ref == 'refs/heads/master'
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_branch: gh-pages
+        publish_dir: ./target/doc
+        force_orphan: true
