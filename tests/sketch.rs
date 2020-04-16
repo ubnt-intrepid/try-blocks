@@ -1,4 +1,4 @@
-use try_blocks::try_blocks;
+use try_blocks::{try_block, try_blocks};
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
@@ -65,6 +65,10 @@ impl X {
 pub fn try_op_described_outside_of_try_block() -> Result<()> {
     let _ = foo()?;
     Ok(())
+}
+
+pub fn expr_style() -> Result<()> {
+    try_block! {}
 }
 
 fn foo() -> Result<i32> {

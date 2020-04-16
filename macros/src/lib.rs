@@ -1,9 +1,12 @@
 use proc_macro::TokenStream;
 use proc_macro2::Span;
+use proc_macro_hack::proc_macro_hack;
 use quote::{quote, quote_spanned};
 use syn::{
     fold::{self, Fold}, //
+    parse::Parser as _,
     spanned::Spanned,
+    Attribute,
     Block,
     Expr,
     ExprTry,
@@ -16,12 +19,22 @@ use syn::{
 #[proc_macro_attribute]
 pub fn try_blocks(_: TokenStream, item: TokenStream) -> TokenStream {
     let item = syn::parse_macro_input!(item as Item);
+    let expanded = TryBlocksExpander::default().expand_item(item);
+    TokenStream::from(quote!(#expanded))
+}
 
-    let item = TryBlocksExpander::default().expand(item);
-
-    TokenStream::from(quote! {
-        #item
-    })
+#[proc_macro_hack]
+pub fn try_block(input: TokenStream) -> TokenStream {
+    let parser = Block::parse_within;
+    let block = match parser.parse(input) {
+        Ok(stmts) => Block {
+            stmts,
+            brace_token: Default::default(),
+        },
+        Err(err) => return err.to_compile_error().into(),
+    };
+    let expanded = TryBlocksExpander::default().expand_try_block(vec![], block);
+    TokenStream::from(quote!(#expanded))
 }
 
 struct Scope {
@@ -36,7 +49,7 @@ struct TryBlocksExpander {
 }
 
 impl TryBlocksExpander {
-    fn expand(&mut self, item: Item) -> Item {
+    fn expand_item(&mut self, item: Item) -> Item {
         fold::fold_item(self, item)
     }
 
@@ -59,12 +72,19 @@ impl TryBlocksExpander {
         result
     }
 
-    fn expand_try_block(&mut self, expr: ExprTryBlock) -> Expr {
-        let ExprTryBlock { attrs, block, .. } = expr;
-        let block_span = block.span();
-
+    fn expand_try_block(&mut self, attrs: Vec<Attribute>, block: Block) -> Expr {
         self.with_try_scope(|me| {
+            let block_span = block.span();
+
             let mut expanded = me.fold_block(block);
+
+            expanded.stmts.insert(
+                0,
+                Stmt::Item(Item::Verbatim(quote! {
+                    use ::try_blocks::_rt as __try_blocks;
+                })),
+            );
+
             let scope = me.try_scopes.last().unwrap();
             let name = &scope.name;
 
@@ -136,22 +156,13 @@ impl Fold for TryBlocksExpander {
         item // ignore inner items
     }
 
-    fn fold_block(&mut self, block: Block) -> Block {
-        let mut expanded = fold::fold_block(self, block);
-
-        expanded.stmts.insert(
-            0,
-            Stmt::Item(Item::Verbatim(quote! {
-                use ::try_blocks::_rt as __try_blocks;
-            })),
-        );
-
-        expanded
-    }
-
     fn fold_expr(&mut self, expr: Expr) -> Expr {
         match expr {
-            Expr::TryBlock(e) => self.expand_try_block(e),
+            Expr::TryBlock(ExprTryBlock {
+                attrs, //
+                block,
+                ..
+            }) => self.expand_try_block(attrs, block),
             // ignore `<expr>?` written outside of `try { ... }`
             expr @ Expr::Try(..) if self.try_scopes.is_empty() => expr,
             Expr::Try(e) => self.expand_try(e),

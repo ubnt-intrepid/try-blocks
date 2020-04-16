@@ -13,3 +13,4 @@ doc = false
 proc-macro2 = "1"
 syn = { version = "1", features = [ "full", "fold" ] }
 quote = "1"
+proc-macro-hack = "0.5"
