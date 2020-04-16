@@ -32,7 +32,9 @@ jobs:
       run: cargo fetch
 
     - name: Build API docs
-      run: cargo doc --no-deps --workspace
+      run: |
+        cargo doc --no-deps --workspace
+        rm -rfv target/doc/.lock
 
     - name: Deply to GitHub Pages
       if: github.ref == 'refs/heads/master'
