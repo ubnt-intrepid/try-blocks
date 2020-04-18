@@ -34,6 +34,7 @@ jobs:
     - name: Build API docs
       run: |
         cargo doc --no-deps --workspace
+        cat '<meta http-equiv="refresh" content="0;url=try_blocks"><a href="try_blocks">Redirect</a>' > target/doc/index.html
         rm -rfv target/doc/.lock
 
     - name: Deply to GitHub Pages
