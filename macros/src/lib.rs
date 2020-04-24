@@ -78,13 +78,6 @@ impl TryBlocksExpander {
 
             let mut expanded = me.fold_block(block);
 
-            expanded.stmts.insert(
-                0,
-                Stmt::Item(Item::Verbatim(quote! {
-                    use ::try_blocks::_rt as __try_blocks;
-                })),
-            );
-
             let scope = me.try_scopes.last().unwrap();
             let name = &scope.name;
 
@@ -113,12 +106,13 @@ impl TryBlocksExpander {
                 }
             }
 
-            Expr::Verbatim(quote_spanned! { block_span =>
+            Expr::Verbatim(quote_spanned! { block_span => {
+                use ::try_blocks::_rt as __try_blocks;
                 #(#attrs)*
                 #name: loop {
                     #expanded
                 }
-            })
+            }})
         })
     }
 
