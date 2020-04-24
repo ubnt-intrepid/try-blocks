@@ -121,27 +121,34 @@ impl TryBlocksExpander {
             attrs,
             expr,
             question_token,
-            ..
         } = expr;
 
         let expanded = self.fold_expr(*expr);
-        let scope = self.try_scopes.last().unwrap();
-        let name = &scope.name;
 
-        Expr::Verbatim(quote_spanned! { question_token.span() =>
-            #(#attrs)*
-            match __try_blocks::into_result(#expanded) {
-                #[allow(unreachable_code)]
-                Ok(val) => val,
+        if let Some(scope) = self.try_scopes.last() {
+            let name = &scope.name;
 
-                #[allow(unreachable_code)]
-                Err(err) => {
-                    break #name __try_blocks::from_error(
-                        From::from(err)
-                    );
-                },
-            }
-        })
+            Expr::Verbatim(quote_spanned! { question_token.span() =>
+                #(#attrs)*
+                match __try_blocks::into_result(#expanded) {
+                    #[allow(unreachable_code)]
+                    Ok(val) => val,
+
+                    #[allow(unreachable_code)]
+                    Err(err) => {
+                        break #name __try_blocks::from_error(
+                            From::from(err)
+                        );
+                    },
+                }
+            })
+        } else {
+            Expr::Try(ExprTry {
+                attrs,
+                expr: Box::new(expanded),
+                question_token,
+            })
+        }
     }
 }
 
@@ -157,8 +164,6 @@ impl Fold for TryBlocksExpander {
                 block,
                 ..
             }) => self.expand_try_block(attrs, block),
-            // ignore `<expr>?` written outside of `try { ... }`
-            expr @ Expr::Try(..) if self.try_scopes.is_empty() => expr,
             Expr::Try(e) => self.expand_try(e),
             expr => fold::fold_expr(self, expr),
         }

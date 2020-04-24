@@ -1,6 +1,7 @@
 use try_blocks::{try_block, try_blocks};
 
-type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+type Error = Box<dyn std::error::Error>;
+type Result<T> = std::result::Result<T, Error>;
 
 #[try_blocks]
 pub fn smoke_free_fn() -> Result<()> {
@@ -70,6 +71,12 @@ pub fn try_op_described_outside_of_try_block() -> Result<()> {
 pub fn expr_style() -> Result<()> {
     try_block! {}
 }
+
+// #[try_blocks]
+// pub fn apply_try_op_to_try_block() -> Result<()> {
+//     try {}?; // FIXME: require type annotation
+//     Ok(())
+// }
 
 fn foo() -> Result<i32> {
     Ok(0)
