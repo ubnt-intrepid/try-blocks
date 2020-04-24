@@ -19,7 +19,7 @@ use syn::{
 #[proc_macro_attribute]
 pub fn try_blocks(_: TokenStream, item: TokenStream) -> TokenStream {
     let item = syn::parse_macro_input!(item as Item);
-    let expanded = TryBlocksExpander::default().expand_item(item);
+    let expanded = TryBlocksExpander::default().fold_item(item);
     TokenStream::from(quote!(#expanded))
 }
 
@@ -49,10 +49,6 @@ struct TryBlocksExpander {
 }
 
 impl TryBlocksExpander {
-    fn expand_item(&mut self, item: Item) -> Item {
-        fold::fold_item(self, item)
-    }
-
     fn with_try_scope<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
         let scope_id = self.next_scope_id;
         self.try_scopes.push(Scope {
@@ -86,8 +82,7 @@ impl TryBlocksExpander {
                     .stmts
                     .iter_mut()
                     .rev()
-                    .filter(|stmt| !matches!(stmt, Stmt::Item(..)))
-                    .next();
+                    .find(|stmt| !matches!(stmt, Stmt::Item(..)));
 
                 match last_non_item_stmt {
                     Some(Stmt::Expr(ref mut expr)) => {
@@ -137,6 +132,7 @@ impl TryBlocksExpander {
                     #[allow(unreachable_code)]
                     Err(err) => {
                         break #name __try_blocks::from_error(
+                            #[allow(clippy::identity_conversion)]
                             From::from(err)
                         );
                     },
@@ -153,8 +149,11 @@ impl TryBlocksExpander {
 }
 
 impl Fold for TryBlocksExpander {
-    fn fold_item(&mut self, item: Item) -> Item {
-        item // ignore inner items
+    fn fold_stmt(&mut self, stmt: Stmt) -> Stmt {
+        match stmt {
+            stmt @ Stmt::Item(..) => stmt, // ignore inner items
+            stmt => fold::fold_stmt(self, stmt),
+        }
     }
 
     fn fold_expr(&mut self, expr: Expr) -> Expr {
