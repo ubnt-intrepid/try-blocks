@@ -63,8 +63,11 @@ impl X {
 }
 
 #[try_blocks]
-pub fn try_op_described_outside_of_try_block() -> Result<()> {
+pub fn toplevel_try_op() -> Result<()> {
     let _ = foo()?;
+
+    t::<Result<_>>(try {})?;
+
     Ok(())
 }
 
@@ -72,16 +75,15 @@ pub fn expr_style() -> Result<()> {
     try_block! {}
 }
 
-// #[try_blocks]
-// pub fn apply_try_op_to_try_block() -> Result<()> {
-//     try {}?; // FIXME: require type annotation
-//     Ok(())
-// }
-
 fn foo() -> Result<i32> {
     Ok(0)
 }
 
 async fn bar() -> Result<i32> {
     Ok(0)
+}
+
+#[inline]
+fn t<T>(t: T) -> T {
+    t
 }
